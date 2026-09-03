@@ -1,0 +1,69 @@
+{
+  "estimates": [
+    {
+      "_id": "demo-cot-001",
+      "status": "draft",
+      "name": "Implementación HighLevel - Proyecto piloto",
+      "title": "COTIZACIÓN",
+      "currency": "MXN",
+      "estimateNumberPrefix": "COT-",
+      "estimateNumber": 1001,
+      "issueDate": "2026-09-02",
+      "expiryDate": "2026-09-17",
+      "businessDetails": {
+        "name": "Empresa de Demostración",
+        "phoneNo": "0000000000",
+        "website": "https://example.invalid",
+        "address": {
+          "addressLine1": "Domicilio de demostración",
+          "city": "Ciudad de ejemplo",
+          "state": "Estado de ejemplo",
+          "postalCode": "00000",
+          "countryCode": "MX"
+        }
+      },
+      "contactDetails": {
+        "id": "demo-contact-001",
+        "name": "Cliente de Demostración",
+        "email": "cliente@example.invalid",
+        "phoneNo": "0000000000",
+        "companyName": "Cliente de Demostración",
+        "address": {
+          "addressLine1": "Domicilio de demostración",
+          "city": "Ciudad de ejemplo",
+          "state": "Estado de ejemplo",
+          "postalCode": "00000",
+          "countryCode": "MX"
+        },
+        "customFields": [
+          {"name": "RFC", "value": "RFC_DEMO"}
+        ]
+      },
+      "items": [
+        {
+          "name": "Configuración inicial",
+          "description": "Preparación de cuenta, pipeline y campos personalizados.",
+          "currency": "MXN",
+          "amount": 12000,
+          "qty": 1,
+          "type": "one_time",
+          "taxInclusive": false,
+          "taxes": [{"name": "IVA", "rate": 16, "calculation": "exclusive"}]
+        },
+        {
+          "name": "Capacitación",
+          "description": "Sesión remota para el equipo operativo.",
+          "currency": "MXN",
+          "amount": 1500,
+          "qty": 2,
+          "type": "one_time",
+          "taxInclusive": false,
+          "taxes": [{"name": "IVA", "rate": 16, "calculation": "exclusive"}]
+        }
+      ],
+      "discount": {"type": "percentage", "value": 0},
+      "total": 17400,
+      "termsNotes": "Vigencia de 15 días naturales. Precios expresados en pesos mexicanos. El servicio inicia después de la aprobación y el anticipo acordado."
+    }
+  ]
+}
