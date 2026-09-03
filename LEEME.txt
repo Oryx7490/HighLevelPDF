@@ -1,0 +1,55 @@
+COTIZACIONES HIGHLEVEL - INSTALADOR PARA WINDOWS
+================================================
+
+REQUISITOS
+- Windows 10 u 11 de 64 bits.
+- Conexion a Internet durante la instalacion.
+- Windows Package Manager (winget) si Python todavia no esta instalado.
+- Location ID y Private Integration Token de HighLevel.
+
+INSTALACION
+1. Conserva juntos todos los archivos de esta carpeta.
+2. Haz doble clic en Instalar.cmd.
+3. El instalador buscara Python. Si no existe, instalara Python 3.13 mediante
+   winget para el usuario actual.
+4. Instalara o actualizara ReportLab mediante pip.
+5. Copiara la aplicacion a:
+   %LOCALAPPDATA%\CotizacionesHighLevel
+6. Creara config.local.json si todavia no existe.
+7. Creara dos accesos directos en el Escritorio.
+8. Abrira config.local.json en el Bloc de notas.
+
+No tienes que escribir comandos de PowerShell ni modificar permanentemente la
+Execution Policy. Instalar.cmd autoriza solamente el script incluido durante
+esa ejecucion.
+
+CONFIGURACION OBLIGATORIA
+Completa los dos valores sin eliminar las comillas:
+
+{
+  "location_id": "TU_LOCATION_ID",
+  "token": "TU_PRIVATE_INTEGRATION_TOKEN",
+  "port": 8765
+}
+
+Guarda el archivo y abre el acceso directo Cotizaciones HighLevel. El navegador
+se abrira automaticamente en http://127.0.0.1:8765.
+
+IMPORTANTE
+La cuenta abierta en el navegador no entrega credenciales a la aplicacion. Esto
+es intencional. El Location ID y el Private Integration Token deben capturarse
+manualmente para no intentar leer o reutilizar la sesion privada del navegador.
+
+SEGURIDAD
+- No compartas config.local.json.
+- Usa el permiso invoices/estimate.readonly.
+- Si se pierde la PC, revoca su token en HighLevel.
+- Es recomendable crear un token diferente para cada computadora.
+
+DESINSTALACION
+1. Cierra la ventana del servidor.
+2. Ejecuta Desinstalar.cmd desde:
+   %LOCALAPPDATA%\CotizacionesHighLevel
+
+La desinstalacion no elimina Python ni ReportLab porque otras aplicaciones
+pueden utilizarlos.
