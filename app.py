@@ -300,14 +300,14 @@ def build_pdf(estimate: dict[str, Any]) -> bytes:
             Paragraph(money(amount, currency), styles["SmallRight"]),
             Paragraph(money(qty * amount, currency), styles["SmallRight"]),
         ])
-    item_table = Table(item_rows, colWidths=[91 * mm, 18 * mm, 32 * mm, 33 * mm], repeatRows=1)
+    item_table = Table(item_rows, colWidths=[103 * mm, 18 * mm, 26 * mm, 27 * mm], repeatRows=1)
     item_table.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#113B5C")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#C8D4DE")), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7FAFC")]), ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7)]))
     story.append(item_table)
 
     total_rows = [
         ["Subtotal", money(subtotal, currency)],
         ["Descuento", f"- {money(discount, currency)}"],
-        ["Impuestos", money(taxes_total, currency)],
+        ["IVA", money(taxes_total, currency)],
         ["TOTAL", money(total, currency)],
     ]
     totals = Table([[Paragraph(f"<b>{esc(a)}</b>", styles["SmallRight"]), Paragraph(f"<b>{esc(b)}</b>", styles["SmallRight"])] for a, b in total_rows], colWidths=[38 * mm, 42 * mm], hAlign="RIGHT")
