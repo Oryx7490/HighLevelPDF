@@ -1,0 +1,5 @@
+{
+  "location_id": "TU_LOCATION_ID",
+  "token": "TU_PRIVATE_INTEGRATION_TOKEN",
+  "port": 8765
+}
