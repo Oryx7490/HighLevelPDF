@@ -17,7 +17,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
-from datetime import datetime
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
@@ -172,6 +172,66 @@ class HighLevelClient:
             )
         return objects
 
+    def _write_estimate_request(self, method: str, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if not self.configured:
+            raise RuntimeError("El modo demo no permite guardar cambios en HighLevel.")
+        request = urllib.request.Request(
+            f"{API_BASE}{path}",
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            method=method,
+            headers={
+                "Authorization": f"Bearer {self.token}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "Accept-Encoding": "identity",
+                "User-Agent": "HighLevel-Estimates-PDF/1.0",
+                "Version": VERSION,
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                result = json.load(response)
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            if exc.code in (401, 403):
+                raise RuntimeError(
+                    f"HighLevel rechazo la escritura ({exc.code}). Verifica que el Private Integration tenga "
+                    "el permiso invoices/estimate.write y que el Location ID sea correcto."
+                ) from exc
+            raise RuntimeError(f"HighLevel respondio {exc.code}: {detail}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"No fue posible conectar con HighLevel: {exc.reason}") from exc
+        if not isinstance(result, dict):
+            raise RuntimeError("HighLevel devolvio una respuesta inesperada al guardar la estimacion.")
+        return result.get("estimate") if isinstance(result.get("estimate"), dict) else result
+
+    def _estimate_payload(self, data: dict[str, Any]) -> dict[str, Any]:
+        allowed = (
+            "name", "businessDetails", "currency", "items", "liveMode", "discount",
+            "termsNotes", "title", "contactDetails", "estimateNumber", "issueDate",
+            "expiryDate", "sentTo", "frequencySettings", "estimateNumberPrefix",
+            "userId", "attachments", "autoInvoice", "miscellaneousCharges",
+            "paymentScheduleConfig", "automaticTaxesEnabled", "meta"
+        )
+        payload = {key: data[key] for key in allowed if key in data}
+        payload["altId"] = self.location_id
+        payload["altType"] = "location"
+        payload.setdefault("liveMode", True)
+        payload.setdefault("discount", {"value": 0, "type": "percentage"})
+        payload.setdefault("items", [])
+        payload.setdefault("businessDetails", {"name": "RGB Media"})
+        if not payload["businessDetails"]:
+            payload["businessDetails"] = {"name": "RGB Media"}
+        payload.setdefault("contactDetails", {})
+        payload.setdefault("title", "COTIZACION")
+        return payload
+
+    def create_estimate(self, data: dict[str, Any]) -> dict[str, Any]:
+        return self._write_estimate_request("POST", "/invoices/estimate", self._estimate_payload(data))
+
+    def update_estimate(self, estimate_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        return self._write_estimate_request("PUT", f"/invoices/estimate/{urllib.parse.quote(estimate_id, safe='')}", self._estimate_payload(data))
+
 
 def address_text(value: Any) -> str:
     if isinstance(value, str):
@@ -294,13 +354,17 @@ def build_pdf(estimate: dict[str, Any]) -> bytes:
         detail = strip_html(item.get("description"))
         if detail:
             description += f"<br/><font color='#66788A'>{esc(detail)}</font>"
+        shown_price = "Incluido" if item.get("included") else money(amount, currency)
+        shown_amount = "Incluido" if item.get("included") else money(qty * amount, currency)
         item_rows.append([
             Paragraph(description, styles["Small"]),
             Paragraph(f"{qty:g}", styles["SmallRight"]),
-            Paragraph(money(amount, currency), styles["SmallRight"]),
-            Paragraph(money(qty * amount, currency), styles["SmallRight"]),
+            Paragraph(shown_price, styles["SmallRight"]),
+            Paragraph(shown_amount, styles["SmallRight"]),
         ])
-    item_table = Table(item_rows, colWidths=[103 * mm, 18 * mm, 26 * mm, 27 * mm], repeatRows=1)
+    # El impuesto se presenta en el resumen, no como columna por producto.
+    # Esto deja más espacio para nombres y descripciones extensas.
+    item_table = Table(item_rows, colWidths=[103 * mm, 16 * mm, 27 * mm, 28 * mm], repeatRows=1)
     item_table.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#113B5C")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#C8D4DE")), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7FAFC")]), ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7)]))
     story.append(item_table)
 
@@ -316,7 +380,11 @@ def build_pdf(estimate: dict[str, Any]) -> bytes:
 
     terms = strip_html(estimate.get("termsNotes"))
     if terms:
-        safe_terms = "<br/>".join(esc(line) for line in textwrap.wrap(terms, width=110, replace_whitespace=False))
+        safe_lines = []
+        for line in terms.splitlines():
+            if line.strip():
+                safe_lines.extend(esc(part) for part in textwrap.wrap(line, width=110, replace_whitespace=False))
+        safe_terms = "<br/>".join(safe_lines)
         story.extend([Spacer(1, 7 * mm), Paragraph("TERMINOS Y OBSERVACIONES", styles["Section"]), Paragraph(safe_terms, styles["Small"])])
 
     doc.build(story)
@@ -340,6 +408,41 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def read_json(self) -> dict[str, Any]:
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            value = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (ValueError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise RuntimeError("El cuerpo de la solicitud no contiene JSON valido.") from exc
+        if not isinstance(value, dict):
+            raise RuntimeError("El cuerpo de la solicitud debe ser un objeto JSON.")
+        return value
+
+    def do_POST(self) -> None:
+        if self.path != "/api/estimates":
+            self.send_json({"error": "Ruta no encontrada"}, 404)
+            return
+        try:
+            created = CLIENT.create_estimate(self.read_json())
+            if estimate_id(created):
+                CACHE[estimate_id(created)] = created
+            self.send_json({"estimate": created}, 201)
+        except (RuntimeError, ValueError) as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
+
+    def do_PUT(self) -> None:
+        match = re.fullmatch(r"/api/estimates/([^/]+)", urllib.parse.urlparse(self.path).path)
+        if not match:
+            self.send_json({"error": "Ruta no encontrada"}, 404)
+            return
+        try:
+            estimate = CLIENT.update_estimate(urllib.parse.unquote(match.group(1)), self.read_json())
+            if estimate_id(estimate):
+                CACHE[estimate_id(estimate)] = estimate
+            self.send_json({"estimate": estimate})
+        except (RuntimeError, ValueError) as exc:
+            self.send_json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
 
     def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
@@ -370,6 +473,15 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"estimates": estimates, "mode": "highlevel" if CLIENT.configured else "demo"})
             except RuntimeError as exc:
                 self.send_json({"error": str(exc)}, HTTPStatus.BAD_GATEWAY)
+            return
+
+        match = re.fullmatch(r"/api/estimates/([^/]+)", parsed.path)
+        if match:
+            item = CACHE.get(urllib.parse.unquote(match.group(1)))
+            if not item:
+                self.send_json({"error": "Cotizacion no encontrada. Actualiza la lista primero."}, 404)
+                return
+            self.send_json({"estimate": item})
             return
 
         match = re.fullmatch(r"/api/estimates/([^/]+)/pdf", parsed.path)
