@@ -11,14 +11,14 @@
       "issueDate": "2026-09-02",
       "expiryDate": "2026-09-17",
       "businessDetails": {
-        "name": "Empresa de Demostración",
-        "phoneNo": "0000000000",
-        "website": "https://example.invalid",
+        "name": "Mi Empresa, S.A. de C.V.",
+        "phoneNo": "+52 55 0000 0000",
+        "website": "https://miempresa.mx",
         "address": {
-          "addressLine1": "Domicilio de demostración",
-          "city": "Ciudad de ejemplo",
-          "state": "Estado de ejemplo",
-          "postalCode": "00000",
+          "addressLine1": "Av. Ejemplo 123",
+          "city": "Ciudad de México",
+          "state": "CDMX",
+          "postalCode": "01234",
           "countryCode": "MX"
         }
       },
@@ -30,8 +30,8 @@
         "companyName": "Cliente de Demostración",
         "address": {
           "addressLine1": "Domicilio de demostración",
-          "city": "Ciudad de ejemplo",
-          "state": "Estado de ejemplo",
+          "city": "Ciudad de México",
+          "state": "CDMX",
           "postalCode": "00000",
           "countryCode": "MX"
         },
