@@ -37,6 +37,8 @@
     .items-editor { width:100%; border-collapse:collapse; margin-top:12px; }
     .items-editor th,.items-editor td { padding:7px; border:1px solid var(--line); }
     .items-editor input { width:100%; height:34px; }
+    .catalog-box { background:#faf7ff; border:1px solid #d9b8ff; border-left:5px solid #8c1dff; border-radius:8px; padding:12px; margin:10px 0 16px; }
+    .catalog-box p { margin:5px 0 10px; color:#52606D; }
     .editor-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:16px; }
     .danger { background:#b42318 !important; }
     textarea { min-height:70px; padding:9px; border:1px solid #b8c6d1; border-radius:8px; font:inherit; }
@@ -75,6 +77,20 @@
           <label class="wide">Términos y observaciones<textarea id="fTerms"></textarea></label>
         </div>
         <h3>Partidas</h3>
+        <div class="catalog-box">
+          <strong>Asistente RGB</strong>
+          <p>Calcula la pantalla LED y agrega conceptos frecuentes desde el catálogo basado en Cotizador Irving.</p>
+          <div class="editor-grid">
+            <label>Serie<select id="rgbSerie"><option>Nebula</option><option>Blazar</option><option>Comet</option></select></label>
+            <label>Pitch (mm)<select id="rgbPitch"><option value="1.86">1.86</option><option value="2.5" selected>2.5</option><option value="4">4</option><option value="8">8</option></select></label>
+            <label>Tipo<select id="rgbType"><option value="Interior">Interior</option><option value="Exterior">Exterior</option></select></label>
+            <label>Ancho (m)<input id="rgbWidth" type="number" step="0.01" value="4.8"></label>
+            <label>Alto (m)<input id="rgbHeight" type="number" step="0.01" value="2.88"></label>
+            <label>Tipo de cambio<input id="rgbTc" type="number" step="0.01" value="17.5"></label>
+          </div>
+          <button type="button" class="secondary" id="applyRgb">Calcular y agregar pantalla</button>
+          <button type="button" class="secondary" id="addCommon">Agregar conceptos frecuentes</button>
+        </div>
         <table class="items-editor"><thead><tr><th>Descripción</th><th>Detalle</th><th>Cant.</th><th>Precio</th><th>Incluido</th><th></th></tr></thead><tbody id="itemRows"></tbody></table>
         <div class="editor-actions"><button type="button" class="secondary" id="addItem">Agregar partida</button><button type="button" class="secondary" id="cancelEdit">Cancelar</button><button type="button" id="saveEdit">Guardar en HighLevel</button></div>
       </section>
@@ -112,6 +128,7 @@
     function addItemRow(item={}){
       const tr=document.createElement('tr');
       tr.innerHTML=`<td><input data-k="name" value="${escapeHtml(item.name || '')}"></td><td><input data-k="description" value="${escapeHtml(item.description || '')}"></td><td><input data-k="qty" type="number" step="0.01" value="${Number(item.qty || 1)}"></td><td><input data-k="amount" type="number" step="0.01" value="${Number(item.amount || 0)}"></td><td><input data-k="included" type="checkbox" ${item.included ? 'checked' : ''}></td><td><button type="button" class="danger remove-item">X</button></td>`;
+      tr.dataset.original=JSON.stringify(item || {});
       tr.querySelector('.remove-item').onclick=()=>tr.remove(); $('itemRows').appendChild(tr);
     }
     function openEditor(e){
@@ -119,12 +136,25 @@
     }
     function newEditor(){ editingBase=null; openEditor({name:'',currency:'MXN',items:[]}); editingId=null; $('editorTitle').textContent='Nueva cotización'; $('fNumber').value=''; $('fIssue').value=new Date().toISOString().slice(0,10); $('fExpiry').value=''; $('fContactName').value=''; $('fContactId').value=''; $('fEmail').value=''; $('fTerms').value=''; $('itemRows').innerHTML=''; addItemRow(); }
     function editorPayload(){
-      const items=[...$('itemRows').children].map(tr=>{ const v={}; tr.querySelectorAll('[data-k]').forEach(el=>v[el.dataset.k]=el.type==='checkbox'?el.checked:el.value); return {name:v.name,description:v.description,qty:Number(v.qty||0),amount:Number(v.amount||0),taxes:[],taxInclusive:false}; });
-      const oldContact=editingBase?.contactDetails||{}; return {name:$('fName').value.trim(),estimateNumber:$('fNumber').value?Number($('fNumber').value):undefined,currency:$('fCurrency').value,issueDate:$('fIssue').value||undefined,expiryDate:$('fExpiry').value||undefined,contactDetails:{...oldContact,id:$('fContactId').value.trim(),name:$('fContactName').value.trim(),email:$('fEmail').value.trim()},businessDetails:editingBase?.businessDetails||{},items,discount:editingBase?.discount||{value:0,type:'percentage'},termsNotes:$('fTerms').value,title:editingBase?.title||'COTIZACION'};
+      const currency=$('fCurrency').value || 'MXN';
+      const items=[...$('itemRows').children].map(tr=>{ const v={}; tr.querySelectorAll('[data-k]').forEach(el=>v[el.dataset.k]=el.type==='checkbox'?el.checked:el.value); const original=JSON.parse(tr.dataset.original||'{}'); return {...original,name:v.name,description:v.description,qty:Number(v.qty||0),amount:Number(v.amount||0),currency:currency,taxes:Array.isArray(original.taxes)?original.taxes:[],taxInclusive:Boolean(original.taxInclusive)}; });
+      const oldContact=editingBase?.contactDetails||{}; return {name:$('fName').value.trim(),estimateNumber:$('fNumber').value?Number($('fNumber').value):undefined,currency:currency,issueDate:$('fIssue').value||undefined,expiryDate:$('fExpiry').value||undefined,contactDetails:{...oldContact,id:$('fContactId').value.trim(),name:$('fContactName').value.trim(),email:$('fEmail').value.trim()},businessDetails:editingBase?.businessDetails||{},items,frequencySettings:editingBase?.frequencySettings||{enabled:false},discount:editingBase?.discount||{value:0,type:'percentage'},termsNotes:$('fTerms').value,title:editingBase?.title||'COTIZACION'};
     }
     async function saveEditor(){ const payload=editorPayload(); if(!payload.name||!payload.contactDetails.id){ $('message').textContent='Nombre y Contact ID son obligatorios para guardar.'; return; } const url=editingId?'/api/estimates/'+encodeURIComponent(editingId):'/api/estimates'; try{ const res=await fetch(url,{method:editingId?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const data=await res.json(); if(!res.ok) throw new Error(data.error||'No se pudo guardar'); $('message').textContent='Guardado correctamente en HighLevel.'; $('editor').classList.remove('open'); await load(); }catch(err){ $('message').textContent=err.message; } }
     $('filters').addEventListener('submit',e=>{e.preventDefault();load()}); init();
     $('newEstimate').onclick=newEditor; $('addItem').onclick=()=>addItemRow(); $('cancelEdit').onclick=()=> $('editor').classList.remove('open'); $('saveEdit').onclick=saveEditor;
+    const rgbPrices={"1.86":1800,"2.5":19425.6,"4":1650,"8":1440};
+    function applyRgb(){
+      const pitch=$('rgbPitch').value, area=Number($('rgbWidth').value||0)*Number($('rgbHeight').value||0), tc=Number($('rgbTc').value||1);
+      const unit=rgbPrices[pitch]||0, name=`Pantalla LED ${$('rgbType').value} - Serie ${$('rgbSerie').value} - Pitch ${pitch}`;
+      addItemRow({name,description:`${$('rgbWidth').value}m x ${$('rgbHeight').value}m | Área ${area.toFixed(2)} m² | TC ${tc}`,qty:1,amount:unit});
+    }
+    function addCommon(){
+      addItemRow({name:'Paquete de Electrónica',description:'Tarjetas receptoras, tarjetas de envío, cable de datos y cables eléctricos.',qty:1,amount:0});
+      addItemRow({name:'Servicio de Instalación Plus',description:'Instalación, puesta en marcha y configuración.',qty:1,amount:0});
+      addItemRow({name:'Complementos y accesorios (Incluye)',description:'Gabinete, importación, embalaje, flete, envío y capacitación.',qty:1,amount:0,included:true});
+    }
+    $('applyRgb').onclick=applyRgb; $('addCommon').onclick=addCommon;
     document.addEventListener('click',e=>{ const id=e.target.dataset?.edit; if(id){ const item=(window.currentEstimates||[]).find(x=>idOf(x)===id); if(item) openEditor(item); }});
   </script>
 </body>
