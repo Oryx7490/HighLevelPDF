@@ -1,6 +1,13 @@
-# Generador y editor de Estimates de HighLevel — versión 3
+# Generador y editor de Estimates de HighLevel — versión 4
 
 La aplicación local consulta cotizaciones de HighLevel, permite crear/editar borradores y genera un PDF propio en español. De forma predeterminada filtra cotizaciones con estado `draft`.
+
+## Mejoras RGB incluidas
+
+- Asistente RGB en el editor para calcular la pantalla con serie, pitch, tipo, ancho, alto y tipo de cambio.
+- Botón para agregar rápidamente paquete de electrónica, instalación y complementos.
+- PDF con encabezado morado, sección "Descripción de pantalla LED", tabla de conceptos, IVA 16% y bloque de términos comerciales.
+- El catálogo es una ayuda inicial basada en la hoja "Cotizador Irving"; confirma precios antes de usarlo en una cotización comercial.
 
 ## 1. Probar sin credenciales
 
@@ -72,7 +79,7 @@ GET https://services.leadconnectorhq.com/invoices/estimate/list
 
 con los parámetros `altId`, `altType=location`, `status`, `limit` y `offset`. El token se usa únicamente en el proceso Python. El navegador nunca lo recibe.
 
-Los datos JSON recibidos de HighLevel se transforman en un PDF A4 con etiquetas en español, moneda de la cotización, cliente, conceptos, subtotal, descuento, IVA, total, vigencia y términos.
+Los datos JSON se transforman en un PDF A4 con etiquetas en español, moneda de la cotización, cliente, conceptos, subtotal, descuento, impuestos, total, vigencia y términos.
 
 ## Solución de problemas
 
