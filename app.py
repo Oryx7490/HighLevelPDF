@@ -219,6 +219,14 @@ class HighLevelClient:
         payload.setdefault("liveMode", True)
         payload.setdefault("discount", {"value": 0, "type": "percentage"})
         payload.setdefault("items", [])
+        currency = str(payload.get("currency") or "MXN")
+        payload["currency"] = currency
+        payload.setdefault("frequencySettings", {"enabled": False})
+        if not payload["frequencySettings"]:
+            payload["frequencySettings"] = {"enabled": False}
+        for item in payload["items"]:
+            if isinstance(item, dict):
+                item["currency"] = str(item.get("currency") or currency)
         payload.setdefault("businessDetails", {"name": "RGB Media"})
         if not payload["businessDetails"]:
             payload["businessDetails"] = {"name": "RGB Media"}
@@ -306,7 +314,7 @@ def build_pdf(estimate: dict[str, Any]) -> bytes:
 
     doc.addPageTemplates([PageTemplate(id="quote", frames=[frame], onPage=footer)])
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name="Brand", parent=styles["Title"], textColor=colors.HexColor("#113B5C"), fontSize=22, leading=26, alignment=TA_LEFT))
+    styles.add(ParagraphStyle(name="Brand", parent=styles["Title"], textColor=colors.HexColor("#8C1DFF"), fontSize=22, leading=26, alignment=TA_LEFT, fontName="Helvetica-Bold"))
     styles.add(ParagraphStyle(name="Meta", parent=styles["Normal"], fontSize=9, leading=13, textColor=colors.HexColor("#40566B")))
     styles.add(ParagraphStyle(name="Small", parent=styles["Normal"], fontSize=8.5, leading=12))
     styles.add(ParagraphStyle(name="SmallRight", parent=styles["Small"], alignment=TA_RIGHT))
@@ -339,7 +347,7 @@ def build_pdf(estimate: dict[str, Any]) -> bytes:
             client_rows.append([field.get("name") or "Dato", field.get("value") or "-"])
     client_table = Table([[Paragraph(f"<b>{esc(a)}</b>", styles["Small"]), Paragraph(esc(b), styles["Small"])] for a, b in client_rows], colWidths=[43 * mm, 131 * mm])
     client_table.setStyle(TableStyle([("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#EDF3F7")), ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#C8D4DE")), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6), ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5)]))
-    story.extend([client_table, Spacer(1, 7 * mm), Paragraph("CONCEPTOS", styles["Section"])])
+    story.extend([client_table, Spacer(1, 7 * mm), Paragraph("DESCRIPCIÓN DE PANTALLA LED", styles["Section"])])
 
     item_rows: list[list[Any]] = [[
         Paragraph("Descripción", styles["TableHead"]),
@@ -371,7 +379,7 @@ def build_pdf(estimate: dict[str, Any]) -> bytes:
     total_rows = [
         ["Subtotal", money(subtotal, currency)],
         ["Descuento", f"- {money(discount, currency)}"],
-        ["IVA", money(taxes_total, currency)],
+        ["I.V.A. 16%", money(taxes_total, currency)],
         ["TOTAL", money(total, currency)],
     ]
     totals = Table([[Paragraph(f"<b>{esc(a)}</b>", styles["SmallRight"]), Paragraph(f"<b>{esc(b)}</b>", styles["SmallRight"])] for a, b in total_rows], colWidths=[38 * mm, 42 * mm], hAlign="RIGHT")
@@ -385,7 +393,7 @@ def build_pdf(estimate: dict[str, Any]) -> bytes:
             if line.strip():
                 safe_lines.extend(esc(part) for part in textwrap.wrap(line, width=110, replace_whitespace=False))
         safe_terms = "<br/>".join(safe_lines)
-        story.extend([Spacer(1, 7 * mm), Paragraph("TERMINOS Y OBSERVACIONES", styles["Section"]), Paragraph(safe_terms, styles["Small"])])
+        story.extend([Spacer(1, 7 * mm), Paragraph("TÉRMINOS COMERCIALES", styles["Section"]), Paragraph(safe_terms, styles["Small"])])
 
     doc.build(story)
     return output.getvalue()
